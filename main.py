@@ -1,7 +1,9 @@
 import pandas as pd
 import streamlit as st
+import zipfile
+import io
 
-# Function to process the CSV file
+# Function to process each CSV file
 def process_file(uploaded_file):
     # Read the CSV file
     df = pd.read_csv(uploaded_file)
@@ -34,30 +36,38 @@ def process_file(uploaded_file):
 # Streamlit app
 st.title("CSV File Processor")
 
-# File uploader
-uploaded_file = st.file_uploader("Upload your CSV file", type="csv")
+# File uploader for multiple files
+uploaded_files = st.file_uploader("Upload CSV files", type="csv", accept_multiple_files=True)
 
-if uploaded_file:
+if uploaded_files:
     try:
-        # Process the uploaded file
-        processed_df = process_file(uploaded_file)
+        # Create an in-memory ZIP file
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Process each uploaded file and add them to the zip file
+            for uploaded_file in uploaded_files:
+                processed_df = process_file(uploaded_file)
 
-        # Display the processed DataFrame
-        st.write("Processed Data:")
-        st.dataframe(processed_df)
+                # Extract the Bill Number from the processed data
+                bill_number = processed_df['Bill Number'].iloc[0] if 'Bill Number' in processed_df.columns else 'processed_file'
 
-        # Extract the first Bill Number from the processed data
-        bill_number = processed_df['Bill Number'].iloc[0] if 'Bill Number' in processed_df.columns else 'processed_file'
+                # Convert the DataFrame to CSV in memory
+                csv_buffer = io.StringIO()
+                processed_df.to_csv(csv_buffer, index=False)
+                csv_data = csv_buffer.getvalue()
 
-        # Convert DataFrame to CSV
-        processed_file = processed_df.to_csv(index=False).encode('utf-8')
+                # Add the CSV file to the zip archive
+                zip_file.writestr(f"{bill_number}.csv", csv_data)
 
-        # Download button for processed file with dynamic file name
+        # Set the position of the zip buffer to the beginning
+        zip_buffer.seek(0)
+
+        # Provide a download button for the ZIP file
         st.download_button(
-            label="Download Processed File",
-            data=processed_file,
-            file_name=f"{bill_number}.csv",
-            mime="text/csv",
+            label="Download All Processed Files",
+            data=zip_buffer,
+            file_name="processed_files.zip",
+            mime="application/zip",
         )
     except Exception as e:
         st.error(f"An error occurred: {e}")
