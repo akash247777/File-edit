@@ -46,14 +46,17 @@ if uploaded_file:
         st.write("Processed Data:")
         st.dataframe(processed_df)
 
+        # Extract the first Bill Number from the processed data
+        bill_number = processed_df['Bill Number'].iloc[0] if 'Bill Number' in processed_df.columns else 'processed_file'
+
         # Convert DataFrame to CSV
         processed_file = processed_df.to_csv(index=False).encode('utf-8')
 
-        # Download button for processed file
+        # Download button for processed file with dynamic file name
         st.download_button(
             label="Download Processed File",
             data=processed_file,
-            file_name="processed_file.csv",
+            file_name=f"{bill_number}.csv",
             mime="text/csv",
         )
     except Exception as e:
